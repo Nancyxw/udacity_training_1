@@ -1,2 +1,2 @@
-# udacity_training_1
-Udacity nanodegree project: Programing for Data Sciences
+# Udacity nanodegree project: Programing for Data Sciences
+Part 1 of my Data Sciences upskilling
