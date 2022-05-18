@@ -1,0 +1,85 @@
+''' Udacity SQL project presnetation query '''
+
+''' Slide 1 - Which category of family movies is the most popular? '''
+SELECT c.name as category_name,
+      count(*) as rental_count
+FROM film f
+JOIN film_category fc
+ON f.film_id = fc.film_id
+JOIN category c
+ON c.category_id = fc.category_id
+AND c.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
+JOIN inventory i
+ON i.film_id = f.film_id
+JOIN rental r
+ON r.inventory_id = i.inventory_id
+GROUP BY 1
+ORDER BY 2
+
+''' Slide 2 - What is the distribution of rental length for different family movie categories? '''
+WITH w1 AS
+(SELECT f.title as film_title,
+      c.name as category_name,
+      f.rental_duration as rental_duration,
+      NTILE(4) OVER (ORDER BY rental_duration) AS standard_quartile
+FROM film f
+JOIN film_category fc
+ON fc.film_id = f.film_id
+JOIN category c
+ON c.category_id = fc.category_id
+AND c.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music'))
+
+SELECT w1.category_name, w1.standard_quartile, count(*)
+FROM w1
+GROUP BY 1,2
+ORDER BY 2,1
+
+''' Slide 3 - Which store performs better every month? '''
+SELECT DATE_part('month', r.rental_date) as month,
+    DATE_PART('year', r.rental_date) as year,
+    s.store_id,
+    count(*) as count_rental
+FROM rental r
+JOIN staff s
+ON r.staff_id = s.staff_id
+GROUP BY 1,2,3
+ORDER BY 2,1
+
+''' Slide 4 - When did our top 10 customers have the biggest purchase improvement in 2007? '''
+WITH w1 AS
+(SELECT CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+    c.customer_id as customer_id,
+    DATE_TRUNC('month', p.payment_date) as payment_month_year,
+    p.amount as amount
+FROM customer c
+JOIN payment p
+ON p.customer_id = c.customer_id),
+
+w2 AS
+(
+  SELECT w1.customer_id as customer_id, sum(w1.amount)
+  FROM w1
+  GROUP BY 1
+  ORDER BY 2 DESC
+  LIMIT 10
+),
+
+w3 AS
+(
+SELECT w1.customer_name as customer_name,
+      w1.payment_month_year as payment_date,
+      count(*) as payment_count,
+      sum(w1.amount) as payment_amount,
+      CASE WHEN LAG(sum(w1.amount)) OVER (PARTITION BY customer_name ORDER BY w1.payment_month_year) IS NULL THEN 0
+      ELSE sum(w1.amount) - LAG(sum(w1.amount)) OVER (PARTITION BY customer_name ORDER BY w1.payment_month_year) END AS diff_to_prev_month
+
+FROM w1
+JOIN w2
+ON w1.customer_id = w2.customer_id
+WHERE w1.payment_month_year BETWEEN '2006-12-31' AND '2008-01-01'
+GROUP BY 1,2
+)
+
+SELECT *
+FROM w3
+ORDER BY 5
